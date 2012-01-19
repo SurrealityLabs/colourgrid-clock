@@ -277,7 +277,7 @@ void loop(void) {
   uint8_t hourOnes = now.hour() % 10;
   uint8_t hourTens = now.hour() / 10;
   
-  uint8_t r, g, b, tempH;
+  uint8_t r, g, b, tempH, lastH;
 
   if(((now.second() % 30 == 0) && (alreadyRan == 1)) || (alreadyRan == 2)) {
     tempH = random(255);
@@ -286,19 +286,22 @@ void loop(void) {
     minuteOnesColour[1] = g;
     minuteOnesColour[2] = b;
     
-    tempH = random(255);
+    lastH = tempH;
+    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
     h2rgb(tempH, r, g, b);
     minuteTensColour[0] = r;
     minuteTensColour[1] = g;
     minuteTensColour[2] = b;
 
-    tempH = random(255);
+    lastH = tempH;
+    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
     h2rgb(tempH, r, g, b);
     hourOnesColour[0] = r;
     hourOnesColour[1] = g;
     hourOnesColour[2] = b;
     
-    tempH = random(255);
+    lastH = tempH;
+    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
     h2rgb(tempH, r, g, b);
     hourTensColour[0] = r;
     hourTensColour[1] = g;
@@ -529,3 +532,18 @@ void SPIWriteByte(uint8_t dataByte)
         while((SPSR & (1<<SPIF))==0);
 }
 
+uint8_t checkDifference(uint8_t itemOne, uint8_t itemTwo, uint8_t threshold) {
+  uint8_t diff;
+  
+  if(itemOne > itemTwo) {
+    diff = itemOne - itemTwo;
+  } else {
+    diff = itemTwo - itemOne;
+  }
+  
+  if(diff >= threshold) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
