@@ -20,6 +20,11 @@ uint8_t newDisplayArray[3][32];
 volatile uint8_t currentRow;
 volatile uint8_t NumBlanks = 0;
 
+uint8_t minuteOnesColour[] = {255, 0, 0};
+uint8_t minuteTensColour[] = {0, 255, 0};
+uint8_t hourOnesColour[] = {0, 0, 255};
+uint8_t hourTensColour[] = {127, 0, 127};
+
 #define MaxBlanks 2
 
 // BLANK on OC2B / PD3
@@ -105,9 +110,9 @@ int setDateFunc(char * args[], char num_args) {
 
   Serial.print(F("Setting date to "));
   Serial.print(dayNum);
-  Serial.print("/");
+  Serial.print('/');
   Serial.print(monthNum);
-  Serial.print("/");
+  Serial.print('/');
   Serial.println(yearNum);
   return 0;  
 }
@@ -262,89 +267,183 @@ ISR(TIMER1_COMPA_vect)
 
 void loop(void) {
   DateTime now = RTC.now();
-CommandLine.runService();
+  CommandLine.runService();
   
-  clearPixels();
+  static uint8_t alreadyRan = 2;
   
+  uint8_t ShuffleData[9];
   uint8_t minuteOnes = now.minute() % 10;
   uint8_t minuteTens = now.minute() / 10;
   uint8_t hourOnes = now.hour() % 10;
   uint8_t hourTens = now.hour() / 10;
- 
-  switch(minuteOnes) {
-    case 9:
-      setPixel(2,0,255,0,0);
-    case 8:
-      setPixel(2,1,255,0,0);
-    case 7:
-      setPixel(2,2,255,0,0);
-    case 6:
-      setPixel(1,0,255,0,0);
-    case 5:
-      setPixel(1,1,255,0,0);
-    case 4:
-      setPixel(1,2,255,0,0);
-    case 3:
-      setPixel(0,0,255,0,0);
-    case 2:
-      setPixel(0,1,255,0,0);
-    case 1:
-      setPixel(0,2,255,0,0);
-    default:
-      break;
-  }
   
-  switch(minuteTens) {
-    case 6:
-      setPixel(4,0,0,255,0);
-    case 5:
-      setPixel(4,1,0,255,0);
-    case 4:
-      setPixel(4,2,0,255,0);
-    case 3:
-      setPixel(3,0,0,255,0);
-    case 2:
-      setPixel(3,1,0,255,0);
-    case 1:
-      setPixel(3,2,0,255,0);
-    default:
-      break;
-  }
+  uint8_t r, g, b, tempH;
 
-  switch(hourOnes) {
-    case 9:
-      setPixel(7,0,0,0,255);
-    case 8:
-      setPixel(7,1,0,0,255);
-    case 7:
-      setPixel(7,2,0,0,255);
-    case 6:
-      setPixel(6,0,0,0,255);
-    case 5:
-      setPixel(6,1,0,0,255);
-    case 4:
-      setPixel(6,2,0,0,255);
-    case 3:
-      setPixel(5,0,0,0,255);
-    case 2:
-      setPixel(5,1,0,0,255);
-    case 1:
-      setPixel(5,2,0,0,255);
-    default:
-      break;
-  }
+  if(((now.second() % 30 == 0) && (alreadyRan == 1)) || (alreadyRan == 2)) {
+    tempH = random(255);
+    h2rgb(tempH, r, g, b);
+    minuteOnesColour[0] = r;
+    minuteOnesColour[1] = g;
+    minuteOnesColour[2] = b;
+    
+    tempH = random(255);
+    h2rgb(tempH, r, g, b);
+    minuteTensColour[0] = r;
+    minuteTensColour[1] = g;
+    minuteTensColour[2] = b;
+
+    tempH = random(255);
+    h2rgb(tempH, r, g, b);
+    hourOnesColour[0] = r;
+    hourOnesColour[1] = g;
+    hourOnesColour[2] = b;
+    
+    tempH = random(255);
+    h2rgb(tempH, r, g, b);
+    hourTensColour[0] = r;
+    hourTensColour[1] = g;
+    hourTensColour[2] = b;
+    
+    clearPixels();
+
+    // Hours 10 digit...
+    for (uint8_t i = 0; i < 6; ++i)
+      ShuffleData[i] = (i < hourTens) ? 1 : 0;
   
-  switch(hourTens) {
-    case 2:
-      setPixel(8,1,255,0,255);
-    case 1:
-      setPixel(8,2,255,0,255);
-    default:
-      break;
-  }
+    ShuffleIfNeeded(ShuffleData, 3, hourTens);
+    if(ShuffleData[0]) setPixel(8,0,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
+    if(ShuffleData[1]) setPixel(8,1,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
+    if(ShuffleData[2]) setPixel(8,2,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
   
-  swapDisplay();
-   
+    // Hours 1 digit...
+    for (uint8_t i = 0; i < 9; ++i)
+      ShuffleData[i] = (i < hourOnes) ? 1 : 0;
+  
+    ShuffleIfNeeded(ShuffleData, 9, hourOnes);
+    if(ShuffleData[0]) setPixel(7,0,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[1]) setPixel(7,1,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[2]) setPixel(7,2,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[3]) setPixel(6,0,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[4]) setPixel(6,1,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[5]) setPixel(6,2,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[6]) setPixel(5,0,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[7]) setPixel(5,1,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+    if(ShuffleData[8]) setPixel(5,2,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
+  
+    // Minutes 10 digit...
+    for (uint8_t i = 0; i < 9; ++i)
+      ShuffleData[i] = (i < minuteTens) ? 1 : 0;
+  
+    ShuffleIfNeeded(ShuffleData, 6, minuteTens);
+    if(ShuffleData[0]) setPixel(4,0,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+    if(ShuffleData[1]) setPixel(4,1,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+    if(ShuffleData[2]) setPixel(4,2,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+    if(ShuffleData[3]) setPixel(3,0,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+    if(ShuffleData[4]) setPixel(3,1,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+    if(ShuffleData[5]) setPixel(3,2,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
+  
+    // Minutes 1 digit...
+    for (uint8_t i = 0; i < 9; ++i)
+      ShuffleData[i] = (i < minuteOnes) ? 1 : 0;
+  
+    ShuffleIfNeeded(ShuffleData, 9, minuteOnes);
+    if(ShuffleData[0]) setPixel(2,0,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[1]) setPixel(2,1,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[2]) setPixel(2,2,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[3]) setPixel(1,0,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[4]) setPixel(1,1,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[5]) setPixel(1,2,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[6]) setPixel(0,0,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[7]) setPixel(0,1,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    if(ShuffleData[8]) setPixel(0,2,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
+    
+    swapDisplay();
+    alreadyRan = 0;
+  } else if(now.second() % 30 == 1) {
+    alreadyRan = 1;
+  }
+}
+
+void DoShuffle(uint8_t ShuffleData[9], uint8_t NumElems)
+{
+    for (uint8_t i = NumElems - 1; i > 0; --i)
+    {   // Swap ShuffleData[i] with a random element from the set of 
+        // ShuffleData[0..i] (yes, possibly itself.)
+        uint8_t SwapElemIdx = random() % (i + 1);
+
+        if (SwapElemIdx == i)
+            continue; // Swapping the current element with itself.
+
+        uint8_t Temp = ShuffleData[i];
+        ShuffleData[i] = ShuffleData[SwapElemIdx];
+        ShuffleData[SwapElemIdx] = Temp;
+    }
+}
+
+inline void ShuffleIfNeeded(uint8_t ShuffleData[9], uint8_t NumElems, uint8_t NumSetElems)
+{
+    // Don't bother shuffling when all elements have an identical value.
+    if (NumSetElems != NumElems && NumSetElems != 0)
+        DoShuffle(ShuffleData, NumElems);
+}
+
+void h2rgb(uint8_t Hint, uint8_t& R, uint8_t& G, uint8_t& B) {
+
+  int var_i;
+  float H, S=1, V=1, var_1, var_2, var_3, var_h, var_r, var_g, var_b;
+
+  H = (float)Hint / 256.0;
+
+  if ( S == 0 )                       //HSV values = 0 ÷ 1
+  {
+    R = V * 255;
+    G = V * 255;
+    B = V * 255;
+  }
+  else
+  {
+    var_h = H * 6;
+    if ( var_h == 6 ) var_h = 0;      //H must be < 1
+    var_i = int( var_h ) ;            //Or ... var_i = floor( var_h )
+    var_1 = V * ( 1 - S );
+    var_2 = V * ( 1 - S * ( var_h - var_i ) );
+    var_3 = V * ( 1 - S * ( 1 - ( var_h - var_i ) ) );
+
+    if      ( var_i == 0 ) {
+      var_r = V     ;
+      var_g = var_3 ;
+      var_b = var_1 ;
+    }
+    else if ( var_i == 1 ) {
+      var_r = var_2 ;
+      var_g = V     ;
+      var_b = var_1 ;
+    }
+    else if ( var_i == 2 ) {
+      var_r = var_1 ;
+      var_g = V     ;
+      var_b = var_3 ;
+    }
+    else if ( var_i == 3 ) {
+      var_r = var_1 ;
+      var_g = var_2 ;
+      var_b = V     ;
+    }
+    else if ( var_i == 4 ) {
+      var_r = var_3 ;
+      var_g = var_1 ;
+      var_b = V     ;
+    }
+    else                   {
+      var_r = V     ;
+      var_g = var_1 ;
+      var_b = var_2 ;
+    }
+
+    R = (1-var_r) * 255;                  //RGB results = 0 ÷ 255
+    G = (1-var_g) * 255;
+    B = (1-var_b) * 255;
+  }
 }
 
 void swapDisplay(void) {
