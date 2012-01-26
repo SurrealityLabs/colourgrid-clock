@@ -20,10 +20,14 @@ uint8_t newDisplayArray[3][32];
 volatile uint8_t currentRow;
 volatile uint8_t NumBlanks = 0;
 
-uint8_t minuteOnesColour[] = {255, 0, 0};
-uint8_t minuteTensColour[] = {0, 255, 0};
-uint8_t hourOnesColour[] = {0, 0, 255};
-uint8_t hourTensColour[] = {127, 0, 127};
+uint8_t minuteOnesColour[] = {
+  255, 0, 0};
+uint8_t minuteTensColour[] = {
+  0, 255, 0};
+uint8_t hourOnesColour[] = {
+  0, 0, 255};
+uint8_t hourTensColour[] = {
+  127, 0, 127};
 
 #define MaxBlanks 2
 
@@ -42,16 +46,16 @@ uint8_t hourTensColour[] = {127, 0, 127};
 commandshell_cmd_struct_t uart_cmd_set[] =
 {
   {
-    "setDate", "\tsetDate [day] [month] [year]", setDateFunc    }
+    "setDate", "\tsetDate [day] [month] [year]", setDateFunc      }
   ,
   {
-    "setTime", "\tsetTime [hours] [minutes] [seconds]", setTimeFunc    }
+    "setTime", "\tsetTime [hours] [minutes] [seconds]", setTimeFunc      }
   ,
   {
-    "printTime", "\tprintTime", printTimeFunc    }
+    "printTime", "\tprintTime", printTimeFunc      }
   ,
   {
-    0,0,0    }
+    0,0,0      }
 };
 
 unsigned char daysInMonth[] = {
@@ -207,20 +211,22 @@ void setup(void) {
   SPISetup();
 
   sei();
-  
-      
-    Serial.begin(9600);
-    Serial.println(F("Starting"));
 
-    Wire.begin();
-    RTC.begin();
-    if (! RTC.isrunning()) {
-        Serial.println(F("RTC is NOT running!"));
-        // following line sets the RTC to the date & time this sketch was compiled
-        RTC.adjust(DateTime(__DATE__, __TIME__));
-    }
-    Serial.println(F("RTC setup"));
-      CommandLine.commandTable = uart_cmd_set;
+
+  Serial.begin(9600);
+  Serial.println(F("Starting"));
+
+  Wire.begin();
+  RTC.begin();
+  if (! RTC.isrunning()) {
+    Serial.println(F("RTC is NOT running!"));
+    // following line sets the RTC to the date & time this sketch was compiled
+    RTC.adjust(DateTime(__DATE__, __TIME__));
+  }
+  DateTime now = RTC.now();
+  randomSeed(now.unixtime());
+  Serial.println(F("RTC setup"));
+  CommandLine.commandTable = uart_cmd_set;
   CommandLine.init(&Serial);
 }
 
@@ -231,52 +237,54 @@ ISR(TIMER1_COMPA_vect)
   sbi(PORTD, 3);
   //if it's time to change colours, change the state of the state machine. we'll set blank low and reset the timer after we send new data.
     //otherwise, set blank low and reset Timer1 so we get a full 4096 clocks until the next blank
-    if(currentRow == 0) {
-      PORTC &= 0xF8;
-      PORTC |= 0x06;
-    } else if(currentRow == 1) {
-      PORTC &= 0xF8;
-      PORTC |= 0x05;
-    } else if(currentRow == 2) {
-      PORTC &= 0xF8;
-      PORTC |= 0x03;
-    }
-    
-    cbi(PORTB, 1);
-    _delay_us(1);
-    for(uint8_t i=0;i<32;i+=2) {
-      SPIWriteByte(displayArray[currentRow][i]);
-      SPIWriteByte(0x00 | (displayArray[currentRow][i + 1] >> 4));
-      SPIWriteByte((displayArray[currentRow][i + 1] << 4) | 0x00);
-    }
-    sbi(PORTB, 2);
-    _delay_us(10);
-    cbi(PORTB, 2);
-    _delay_us(1);
-    cbi(PORTB, 1);
-    _delay_us(1);
-    
-    cbi(PORTD, 3);
-    TCNT1L = 0;
-    TCNT1H = 0;
-    currentRow++;
-    if(currentRow >= 3) currentRow = 0;
-  
+  if(currentRow == 0) {
+    PORTC &= 0xF8;
+    PORTC |= 0x06;
+  } 
+  else if(currentRow == 1) {
+    PORTC &= 0xF8;
+    PORTC |= 0x05;
+  } 
+  else if(currentRow == 2) {
+    PORTC &= 0xF8;
+    PORTC |= 0x03;
+  }
+
+  cbi(PORTB, 1);
+  _delay_us(1);
+  for(uint8_t i=0;i<32;i+=2) {
+    SPIWriteByte(displayArray[currentRow][i]);
+    SPIWriteByte(0x00 | (displayArray[currentRow][i + 1] >> 4));
+    SPIWriteByte((displayArray[currentRow][i + 1] << 4) | 0x00);
+  }
+  sbi(PORTB, 2);
+  _delay_us(10);
+  cbi(PORTB, 2);
+  _delay_us(1);
+  cbi(PORTB, 1);
+  _delay_us(1);
+
+  cbi(PORTD, 3);
+  TCNT1L = 0;
+  TCNT1H = 0;
+  currentRow++;
+  if(currentRow >= 3) currentRow = 0;
+
 }
 
 
 void loop(void) {
   DateTime now = RTC.now();
   CommandLine.runService();
-  
+
   static uint8_t alreadyRan = 2;
-  
+
   uint8_t ShuffleData[9];
   uint8_t minuteOnes = now.minute() % 10;
   uint8_t minuteTens = now.minute() / 10;
   uint8_t hourOnes = now.hour() % 10;
   uint8_t hourTens = now.hour() / 10;
-  
+
   uint8_t r, g, b, tempH, lastH;
 
   if(((now.second() % 30 == 0) && (alreadyRan == 1)) || (alreadyRan == 2)) {
@@ -285,43 +293,47 @@ void loop(void) {
     minuteOnesColour[0] = r;
     minuteOnesColour[1] = g;
     minuteOnesColour[2] = b;
-    
-    lastH = tempH;
-    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
-    h2rgb(tempH, r, g, b);
-    minuteTensColour[0] = r;
-    minuteTensColour[1] = g;
-    minuteTensColour[2] = b;
+
+    if(now.minute() > 9) {
+      lastH = tempH;
+      while(!checkDifference(lastH, tempH, 75)) tempH = random(255);
+      h2rgb(tempH, r, g, b);
+      minuteTensColour[0] = r;
+      minuteTensColour[1] = g;
+      minuteTensColour[2] = b;
+    }
+
+    if(now.hour() % 10 != 0) {
+      lastH = tempH;
+      while(!checkDifference(lastH, tempH, 75)) tempH = random(255);
+      h2rgb(tempH, r, g, b);
+      hourOnesColour[0] = r;
+      hourOnesColour[1] = g;
+      hourOnesColour[2] = b;
+    }
 
     lastH = tempH;
-    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
-    h2rgb(tempH, r, g, b);
-    hourOnesColour[0] = r;
-    hourOnesColour[1] = g;
-    hourOnesColour[2] = b;
-    
-    lastH = tempH;
-    while(!checkDifference(lastH, tempH, 50)) tempH = random(255);
+    while(!checkDifference(lastH, tempH, 75)) tempH = random(255);
     h2rgb(tempH, r, g, b);
     hourTensColour[0] = r;
     hourTensColour[1] = g;
     hourTensColour[2] = b;
-    
+
     clearPixels();
 
     // Hours 10 digit...
     for (uint8_t i = 0; i < 6; ++i)
       ShuffleData[i] = (i < hourTens) ? 1 : 0;
-  
+
     ShuffleIfNeeded(ShuffleData, 3, hourTens);
     if(ShuffleData[0]) setPixel(8,0,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
     if(ShuffleData[1]) setPixel(8,1,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
     if(ShuffleData[2]) setPixel(8,2,hourTensColour[0],hourTensColour[1],hourTensColour[2]);
-  
+
     // Hours 1 digit...
     for (uint8_t i = 0; i < 9; ++i)
       ShuffleData[i] = (i < hourOnes) ? 1 : 0;
-  
+
     ShuffleIfNeeded(ShuffleData, 9, hourOnes);
     if(ShuffleData[0]) setPixel(7,0,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
     if(ShuffleData[1]) setPixel(7,1,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
@@ -332,11 +344,11 @@ void loop(void) {
     if(ShuffleData[6]) setPixel(5,0,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
     if(ShuffleData[7]) setPixel(5,1,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
     if(ShuffleData[8]) setPixel(5,2,hourOnesColour[0],hourOnesColour[1],hourOnesColour[2]);
-  
+
     // Minutes 10 digit...
     for (uint8_t i = 0; i < 9; ++i)
       ShuffleData[i] = (i < minuteTens) ? 1 : 0;
-  
+
     ShuffleIfNeeded(ShuffleData, 6, minuteTens);
     if(ShuffleData[0]) setPixel(4,0,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
     if(ShuffleData[1]) setPixel(4,1,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
@@ -344,11 +356,11 @@ void loop(void) {
     if(ShuffleData[3]) setPixel(3,0,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
     if(ShuffleData[4]) setPixel(3,1,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
     if(ShuffleData[5]) setPixel(3,2,minuteTensColour[0],minuteTensColour[1],minuteTensColour[2]);
-  
+
     // Minutes 1 digit...
     for (uint8_t i = 0; i < 9; ++i)
       ShuffleData[i] = (i < minuteOnes) ? 1 : 0;
-  
+
     ShuffleIfNeeded(ShuffleData, 9, minuteOnes);
     if(ShuffleData[0]) setPixel(2,0,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
     if(ShuffleData[1]) setPixel(2,1,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
@@ -359,35 +371,36 @@ void loop(void) {
     if(ShuffleData[6]) setPixel(0,0,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
     if(ShuffleData[7]) setPixel(0,1,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
     if(ShuffleData[8]) setPixel(0,2,minuteOnesColour[0],minuteOnesColour[1],minuteOnesColour[2]);
-    
+
     swapDisplay();
     alreadyRan = 0;
-  } else if(now.second() % 30 == 1) {
+  } 
+  else if(now.second() % 30 == 1) {
     alreadyRan = 1;
   }
 }
 
 void DoShuffle(uint8_t ShuffleData[9], uint8_t NumElems)
 {
-    for (uint8_t i = NumElems - 1; i > 0; --i)
-    {   // Swap ShuffleData[i] with a random element from the set of 
-        // ShuffleData[0..i] (yes, possibly itself.)
-        uint8_t SwapElemIdx = random() % (i + 1);
+  for (uint8_t i = NumElems - 1; i > 0; --i)
+  {   // Swap ShuffleData[i] with a random element from the set of 
+    // ShuffleData[0..i] (yes, possibly itself.)
+    uint8_t SwapElemIdx = random() % (i + 1);
 
-        if (SwapElemIdx == i)
-            continue; // Swapping the current element with itself.
+    if (SwapElemIdx == i)
+      continue; // Swapping the current element with itself.
 
-        uint8_t Temp = ShuffleData[i];
-        ShuffleData[i] = ShuffleData[SwapElemIdx];
-        ShuffleData[SwapElemIdx] = Temp;
-    }
+    uint8_t Temp = ShuffleData[i];
+    ShuffleData[i] = ShuffleData[SwapElemIdx];
+    ShuffleData[SwapElemIdx] = Temp;
+  }
 }
 
 inline void ShuffleIfNeeded(uint8_t ShuffleData[9], uint8_t NumElems, uint8_t NumSetElems)
 {
-    // Don't bother shuffling when all elements have an identical value.
-    if (NumSetElems != NumElems && NumSetElems != 0)
-        DoShuffle(ShuffleData, NumElems);
+  // Don't bother shuffling when all elements have an identical value.
+  if (NumSetElems != NumElems && NumSetElems != 0)
+    DoShuffle(ShuffleData, NumElems);
 }
 
 void h2rgb(uint8_t Hint, uint8_t& R, uint8_t& G, uint8_t& B) {
@@ -466,37 +479,37 @@ void clearPixels(void) {
 void setPixel(uint8_t column, uint8_t row, uint8_t red, uint8_t green, uint8_t blue) {
   uint8_t colOut = 0;
   switch(column) {
-    case 0:
-      colOut = 16;
-      break;
-    case 1:
-      colOut = 19;
-      break;
-    case 2:
-      colOut = 22;
-      break;
-    case 3:
-      colOut = 25;
-      break;
-    case 4:
-      colOut = 28;
-      break;
-    case 5:
-      colOut = 0;
-      break;
-    case 6:
-      colOut = 3;
-      break;
-    case 7:
-      colOut = 6;
-      break;
-    case 8:
-      colOut = 9;
-      break;
-    default:
-      break;
+  case 0:
+    colOut = 16;
+    break;
+  case 1:
+    colOut = 19;
+    break;
+  case 2:
+    colOut = 22;
+    break;
+  case 3:
+    colOut = 25;
+    break;
+  case 4:
+    colOut = 28;
+    break;
+  case 5:
+    colOut = 0;
+    break;
+  case 6:
+    colOut = 3;
+    break;
+  case 7:
+    colOut = 6;
+    break;
+  case 8:
+    colOut = 9;
+    break;
+  default:
+    break;
   }
-  
+
   newDisplayArray[row][(colOut)] = green;
   newDisplayArray[row][(colOut) + 1] = red;
   newDisplayArray[row][(colOut) + 2] = blue;
@@ -504,46 +517,49 @@ void setPixel(uint8_t column, uint8_t row, uint8_t red, uint8_t green, uint8_t b
 
 void SPISetup(void)
 {
-        SPCR = ((1<<SPE)|               // SPI Enable
-                        (0<<SPIE)|              // SPI Interupt Enable
-                        (0<<DORD)|              // Data Order (0:MSB first / 1:LSB first)
-                        (1<<MSTR)|              // Master/Slave select
-                        (0<<SPR1)|(0<<SPR0)|    // SPI Clock Rate
-                        (0<<CPOL)|              // Clock Polarity (0:SCK low / 1:SCK hi when idle)
-                        (0<<CPHA));             // Clock Phase (0:leading / 1:trailing edge sampling)
-        SPSR = (1 << SPI2X);
+  SPCR = ((1<<SPE)|               // SPI Enable
+  (0<<SPIE)|              // SPI Interupt Enable
+  (0<<DORD)|              // Data Order (0:MSB first / 1:LSB first)
+  (1<<MSTR)|              // Master/Slave select
+  (0<<SPR1)|(0<<SPR0)|    // SPI Clock Rate
+  (0<<CPOL)|              // Clock Polarity (0:SCK low / 1:SCK hi when idle)
+  (0<<CPHA));             // Clock Phase (0:leading / 1:trailing edge sampling)
+  SPSR = (1 << SPI2X);
 
-        SPISSOn();
+  SPISSOn();
 }
 
 void SPISSOn(void)
 {
-        sbi(PORTB, 2);
+  sbi(PORTB, 2);
 }
 
 void SPISSOff(void)
 {
-        cbi(PORTB, 2);
+  cbi(PORTB, 2);
 }
 
 void SPIWriteByte(uint8_t dataByte)
 {
-        SPDR = dataByte;
-        while((SPSR & (1<<SPIF))==0);
+  SPDR = dataByte;
+  while((SPSR & (1<<SPIF))==0);
 }
 
 uint8_t checkDifference(uint8_t itemOne, uint8_t itemTwo, uint8_t threshold) {
   uint8_t diff;
-  
+
   if(itemOne > itemTwo) {
     diff = itemOne - itemTwo;
-  } else {
+  } 
+  else {
     diff = itemTwo - itemOne;
   }
-  
+
   if(diff >= threshold) {
     return 1;
-  } else {
+  } 
+  else {
     return 0;
   }
 }
+
